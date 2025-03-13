@@ -2,7 +2,14 @@
 from transformers import pipeline
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-hf_sentiment = pipeline("sentiment-analysis")
+# Explicitly specify the model and revision for production readiness
+hf_sentiment = pipeline(
+    "sentiment-analysis", 
+    model="distilbert-base-uncased-finetuned-sst-2-english", 
+    revision="main"
+)
+
+# Initialize VADER sentiment analyzer
 vader_analyzer = SentimentIntensityAnalyzer()
 
 def analyze_sentiment_hf(text):
@@ -23,6 +30,6 @@ def aggregate_sentiments(text):
 
 if __name__ == "__main__":
     sample = "The market is extremely bullish today!"
-    print("HuggingFace:", analyze_sentiment_hf(sample))
-    print("VADER:", analyze_sentiment_vader(sample))
-    print("Aggregated:", aggregate_sentiments(sample))
+    print("HuggingFace Result:", analyze_sentiment_hf(sample))
+    print("VADER Result:", analyze_sentiment_vader(sample))
+  
