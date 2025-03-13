@@ -61,3 +61,26 @@
 2025-03-13 08:47:04,974 - INFO - TPE using 8/8 trials with best loss 64.115185
 2025-03-13 08:47:04,977 - INFO - build_posterior_wrapper took 0.001487 seconds
 2025-03-13 08:47:04,978 - INFO - TPE using 9/9 trials with best loss 64.115185
+2025-03-13 08:58:33,465 - INFO - Test log entry
+2025-03-13 08:58:33,721 - INFO - build_posterior_wrapper took 0.001467 seconds
+2025-03-13 08:58:33,722 - INFO - TPE using 0 trials
+2025-03-13 08:58:33,726 - INFO - build_posterior_wrapper took 0.001355 seconds
+2025-03-13 08:58:33,726 - INFO - TPE using 1/1 trials with best loss 961.128795
+2025-03-13 08:58:33,729 - INFO - build_posterior_wrapper took 0.001229 seconds
+2025-03-13 08:58:33,729 - INFO - TPE using 2/2 trials with best loss 49.170042
+2025-03-13 08:58:33,732 - INFO - build_posterior_wrapper took 0.001153 seconds
+2025-03-13 08:58:33,732 - INFO - TPE using 3/3 trials with best loss 49.170042
+2025-03-13 08:58:33,735 - INFO - build_posterior_wrapper took 0.001914 seconds
+2025-03-13 08:58:33,736 - INFO - TPE using 4/4 trials with best loss 25.039341
+2025-03-13 08:58:33,738 - INFO - build_posterior_wrapper took 0.001304 seconds
+2025-03-13 08:58:33,739 - INFO - TPE using 5/5 trials with best loss 25.039341
+2025-03-13 08:58:33,741 - INFO - build_posterior_wrapper took 0.001388 seconds
+2025-03-13 08:58:33,742 - INFO - TPE using 6/6 trials with best loss 25.039341
+2025-03-13 08:58:33,744 - INFO - build_posterior_wrapper took 0.001018 seconds
+2025-03-13 08:58:33,744 - INFO - TPE using 7/7 trials with best loss 25.039341
+2025-03-13 08:58:33,747 - INFO - build_posterior_wrapper took 0.001231 seconds
+2025-03-13 08:58:33,748 - INFO - TPE using 8/8 trials with best loss 25.039341
+2025-03-13 08:58:33,750 - INFO - build_posterior_wrapper took 0.001266 seconds
+2025-03-13 08:58:33,750 - INFO - TPE using 9/9 trials with best loss 25.039341
+2025-03-13 13:21:33,214 - INFO - Aggregated Signal for AAPL: 1.0
+2025-03-13 13:22:59,464 - INFO - Aggregated Signal for AAPL: 1.0
