@@ -1,0 +1,15 @@
+yfinance
+alpha_vantage
+backtrader
+newsapi-python
+transformers
+vaderSentiment
+numpy
+pandas
+scikit-learn
+hyperopt
+streamlit
+prophet
+requests
+torch
+torchvision

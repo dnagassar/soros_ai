@@ -1,0 +1,10 @@
+# Ignore Python cache files and compiled bytecode
+__pycache__/
+*.pyc
+
+# If you want to exclude API keys, you can ignore config.py
+# Uncomment the line below to ignore config.py if it contains sensitive data
+config.py
+
+# Ignore virtual environment directory
+venv/
