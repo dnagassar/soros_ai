@@ -11,5 +11,4 @@ hyperopt
 streamlit
 prophet
 requests
-torch
-torchvision
+alpaca-trade-api

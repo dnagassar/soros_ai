@@ -1,38 +1,24 @@
-import backtrader as bt
+# modules/strategy.py
+import alpaca_trade_api as tradeapi
+import logging  # Added missing import
+import sys
+from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL
 
-class SentimentStrategy(bt.Strategy):
-    params = dict(
-        stop_loss=0.03,   # 3% stop loss
-        take_profit=0.06  # 6% take profit
-    )
+# Ensure Alpaca API keys are properly set.
+if ALPACA_API_KEY in [None, 'YOUR_ALPACA_API_KEY'] or ALPACA_SECRET_KEY in [None, 'YOUR_ALPACA_SECRET_KEY']:
+    sys.exit("Error: Alpaca API keys are not set. Please update config.py or set the environment variables ALPACA_API_KEY and ALPACA_SECRET_KEY.")
 
-    def __init__(self):
-        self.dataclose = self.datas[0].close
-        self.sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=15)
-        self.order = None
+api = tradeapi.REST(ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL)
 
-    def next(self):
-        if self.order:
-            return
-
-        # Example: buy when price is above SMA; sell when below
-        if self.dataclose[0] > self.sma[0]:
-            self.order = self.buy_bracket(
-                size=100,
-                stopprice=self.dataclose[0] * (1 - self.p.stop_loss),
-                limitprice=self.dataclose[0] * (1 + self.p.take_profit)
-            )
-        elif self.dataclose[0] < self.sma[0]:
-            self.order = self.sell_bracket(
-                size=100,
-                stopprice=self.dataclose[0] * (1 + self.p.stop_loss),
-                limitprice=self.dataclose[0] * (1 - self.p.take_profit)
-            )
-
-if __name__ == "__main__":
-    cerebro = bt.Cerebro()
-    cerebro.addstrategy(SentimentStrategy)
-    data = bt.feeds.YahooFinanceCSVData(dataname='../data/historical_prices.csv')
-    cerebro.adddata(data)
-    cerebro.run()
-    cerebro.plot()
+def execute_trade(symbol, qty, side='buy'):
+    try:
+        order = api.submit_order(
+            symbol=symbol,
+            qty=qty,
+            side=side,
+            type='market',
+            time_in_force='day'
+        )
+        logging.info(f"{side.capitalize()} order for {qty} shares of {symbol} executed successfully. Order ID: {order.id}")
+    except Exception as e:
+        logging.error(f"Order execution error for {symbol}: {e}")

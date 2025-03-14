@@ -3,23 +3,22 @@ import streamlit as st
 import pandas as pd
 import time
 
-def load_trading_data():
-    try:
-        data = pd.read_csv('data/trading_performance.csv')
-    except Exception:
-        data = pd.DataFrame({
-            'timestamp': pd.date_range(start='2021-01-01', periods=10, freq='T'),
-            'PnL': [100, 105, 102, 110, 108, 115, 112, 117, 120, 118]
-        })
-    return data
-
 st.title("Real-Time Trading Dashboard")
 
+def load_trading_logs():
+    try:
+        return pd.read_csv('trading.log', sep='\n', header=None, names=['Logs'])
+    except:
+        return pd.DataFrame({'Logs': ["No logs available yet."]})
+
 data = load_trading_data()
-st.dataframe(data)
+logs = load_trading_logs()
+
+st.subheader("Profit and Loss (PnL)")
 st.line_chart(data.set_index('timestamp')['PnL'])
 
-# Auto-refresh every 10 seconds
-st.experimental_singleton.clear()  # Optionally clear cache
-time.sleep(10)
+st.subheader("Live Trading Logs")
+st.dataframe(logs)
+
+# Auto-refresh dashboard every minute
 st.experimental_rerun()

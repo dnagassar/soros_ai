@@ -1,23 +1,27 @@
 # modules/macro_module.py
 import requests
-from config import FMP_API_KEY  # Separate API key for security
-
-FMP_BASE_URL = "https://financialmodelingprep.com/api/v3/"
+import logging
+from config import FMP_API_KEY
 
 def get_gdp_indicator():
-    url = f"{FMP_BASE_URL}historical-economic-indicators/GDP?apikey={FMP_API_KEY}"
+    url = f"https://financialmodelingprep.com/api/v3/historical-economic-indicators/GDP?apikey={FMP_API_KEY}"
     response = requests.get(url)
-    data = response.json()
-    # Check if data is empty
-    if not data or len(data) == 0:
-        # Log a warning or return a default value for testing
-        print("Warning: No data returned from the API. Returning default indicator 'BULLISH'.")
-        return "BULLISH"  # Default value for testing
-    latest = data[0]
-    if latest.get('value', 0) > 20000:
-        return "BULLISH"
-    else:
-        return "BEARISH"
 
-if __name__ == "__main__":
-    print("GDP Signal:", get_gdp_indicator())
+    if response.status_code != 200:
+        logging.error(f"Failed to fetch GDP data: HTTP {response.status_code}")
+        return "NEUTRAL"  # Return neutral if there's an API error
+
+    data = response.json()
+
+    if not data:
+        logging.warning("GDP data is empty.")
+        return "NEUTRAL"  # Neutral signal if no data is returned
+
+    latest_gdp = data[0].get('value', None)
+
+    if latest_gdp is None:
+        logging.warning("GDP data does not contain 'value'.")
+        return "NEUTRAL"
+
+    # Example threshold, adjust according to your real-world scenario
+    return "BULLISH" if latest_gdp > 20000 else "BEARISH"
