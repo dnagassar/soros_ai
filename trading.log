@@ -162,3 +162,11 @@
 2025-03-14 21:20:54,696 WARNING: GDP data is empty.
 2025-03-14 21:20:55,119 INFO: Aggregated Signal for BTC-USD: 0.8
 2025-03-14 21:20:55,349 INFO: Buy order for 0.001 BTCUSD executed successfully. Order ID: adf5d2bb-fab7-40aa-9cc3-dc49a3ac06fc
+2025-03-14 22:35:58,138 INFO: Data fetched successfully from yfinance.
+2025-03-14 22:35:58,477 WARNING: GDP data is empty.
+2025-03-14 22:35:59,025 INFO: Aggregated Signal for BTC-USD: 0.8
+2025-03-14 22:35:59,152 INFO: Buy order for 0.001 BTCUSD executed successfully. Order ID: d6ec01cc-8f10-45f2-bddf-a2f82a26e226
+2025-03-14 22:44:20,392 INFO: Data fetched successfully from yfinance.
+2025-03-14 22:44:20,672 WARNING: GDP data is empty.
+2025-03-14 22:44:21,066 INFO: Aggregated Signal for BTC-USD: 0.8
+2025-03-14 22:44:21,208 INFO: Buy order for 0.001 BTCUSD executed successfully. Order ID: e7e2bd2c-e61b-4fcc-b302-5b3e29fbc1ab
