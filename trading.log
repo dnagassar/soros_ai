@@ -158,3 +158,7 @@
 2025-03-14 19:10:22,029 INFO: Executing BUY trade for AAPL.
 2025-03-14 19:10:22,168 INFO: Buy order for 10 shares of AAPL executed successfully. Order ID: 932a3788-e9a4-4311-baf0-b171bc50f693
 2025-03-14 19:10:22,168 INFO: Trade execution completed.
+2025-03-14 21:20:54,325 INFO: Data fetched successfully from yfinance.
+2025-03-14 21:20:54,696 WARNING: GDP data is empty.
+2025-03-14 21:20:55,119 INFO: Aggregated Signal for BTC-USD: 0.8
+2025-03-14 21:20:55,349 INFO: Buy order for 0.001 BTCUSD executed successfully. Order ID: adf5d2bb-fab7-40aa-9cc3-dc49a3ac06fc
