@@ -12,3 +12,4 @@ streamlit
 prophet
 requests
 alpaca-trade-api
+openai

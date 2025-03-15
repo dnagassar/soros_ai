@@ -1,56 +1,38 @@
 # main.py
 from modules.data_acquisition import fetch_price_data
 from modules.signal_aggregator import aggregate_signals
-from modules.strategy import execute_trade
-from modules.logger import log_event
-import pandas as pd
+from modules.logger import log_trade
+from modules.strategy import AdaptiveSentimentStrategy
+import backtrader as bt
 import numpy as np
 
-def main():
-    symbol = 'AAPL'
+# --- Step 1: Data Acquisition ---
+data = fetch_price_data('AAPL', '2020-01-01', '2020-12-31')
+# Optionally, save CSV for reference:
+data.to_csv('data/historical_prices.csv')
 
-    # Step 1: Fetch historical price data
-    log_event("Fetching historical price data...")
-    data = fetch_price_data(symbol, '2023-01-01', '2024-03-01')
-    data.dropna(inplace=True)
-    data.to_csv('data/historical_prices.csv', index=False)
-    log_event("Historical price data fetched and saved.")
+# --- Step 2: Signal Aggregation Example ---
+news_text = "Company reports record earnings, bullish sentiment prevails."
+technical_signal = 1   # Example technical indicator signal
+symbol = "AAPL"
+X_train = np.random.rand(100, 10)
+y_train = np.random.rand(100)
+X_test = np.random.rand(1, 10)
+signal_ages = [1, 1, 5, 10, 2]  # Example ages (in days) for each signal
 
-    # Step 2: Prepare real ML training and testing data
-    log_event("Preparing ML datasets...")
-    data['Future_Close'] = data['Close'].shift(-1)
-    data.dropna(inplace=True)
+final_signal = aggregate_signals(news_text, technical_signal, symbol, X_train, y_train, X_test, signal_ages)
+print("Final Aggregated Signal:", final_signal)
+log_trade(f"Aggregated Signal for {symbol}: {final_signal}")
 
-    feature_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-    X = data[feature_columns].values
-    y = data['Future_Close'].values
+# --- Step 3: Execute Trading Strategy with Adaptive Position Sizing ---
+cerebro = bt.Cerebro()
 
-    split_index = int(len(X) * 0.8)
-    X_train = X[:split_index]
-    y_train = y[:split_index]
-    X_test = X[split_index:]
+# Pass the aggregated signal as a parameter to the strategy
+cerebro.addstrategy(AdaptiveSentimentStrategy, signal=final_signal)
 
-    latest_features = X_test[-1].reshape(1, -1)
-    log_event("ML datasets prepared successfully.")
+# Use PandasData feed with the DataFrame (make sure columns are flattened)
+data_feed = bt.feeds.PandasData(dataname=data)
+cerebro.adddata(data_feed)
 
-    # Step 3: Real-time news and technical indicators
-    news_text = "Apple announces better-than-expected earnings, stock expected to rise."
-    technical_signal = 1  # Replace later with real technical analysis signals
-
-    log_event("Aggregating signals...")
-    signal = aggregate_signals(news_text, technical_signal, symbol, X_train, y_train, latest_features)
-    log_event(f"Aggregated Signal for {symbol}: {signal}")
-
-    # Step 4: Execute trade based on aggregated signal
-    trade_quantity = 10
-    if signal > 0:
-        log_event(f"Executing BUY trade for {symbol}.")
-        execute_trade(symbol, trade_quantity, 'buy')
-    else:
-        log_event(f"Executing SELL trade for {symbol}.")
-        execute_trade(symbol, trade_quantity, 'sell')
-
-    log_event("Trade execution completed.")
-
-if __name__ == "__main__":
-    main()
+cerebro.run()
+cerebro.plot()

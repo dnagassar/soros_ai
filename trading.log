@@ -158,3 +158,35 @@
 2025-03-14 19:10:22,029 INFO: Executing BUY trade for AAPL.
 2025-03-14 19:10:22,168 INFO: Buy order for 10 shares of AAPL executed successfully. Order ID: 932a3788-e9a4-4311-baf0-b171bc50f693
 2025-03-14 19:10:22,168 INFO: Trade execution completed.
+2025-03-15 10:01:52,130 INFO: Fetching historical price data...
+2025-03-15 10:01:53,043 INFO: Fetched data from yfinance.
+2025-03-15 10:01:53,060 INFO: Historical price data fetched and saved.
+2025-03-15 10:01:53,060 INFO: Preparing ML datasets...
+2025-03-15 10:01:53,067 INFO: ML datasets prepared successfully.
+2025-03-15 10:01:53,067 INFO: Aggregating signals...
+2025-03-15 10:01:53,443 WARNING: GDP data is empty.
+2025-03-15 10:01:53,927 INFO: Aggregated Signal for AAPL: 0.8
+2025-03-15 10:01:53,927 INFO: Executing BUY trade for AAPL.
+2025-03-15 10:01:54,272 INFO: Buy order for 10 shares of AAPL executed successfully. Order ID: 6913bb70-7616-4da9-992c-03821474cac7
+2025-03-15 10:01:54,272 INFO: Trade execution completed.
+2025-03-15 10:36:12,204 - INFO - Fetched data from yfinance.
+2025-03-15 10:36:12,432 - WARNING - GDP data is empty.
+2025-03-15 10:36:12,855 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
+2025-03-15 11:03:58,993 - INFO - Fetched data from yfinance.
+2025-03-15 11:03:59,541 - WARNING - GDP data is empty.
+2025-03-15 11:04:00,171 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
+2025-03-15 11:09:33,884 - INFO - Fetched data from yfinance.
+2025-03-15 11:09:34,250 - WARNING - GDP data is empty.
+2025-03-15 11:09:34,797 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
+2025-03-15 11:10:18,253 - INFO - Fetched data from yfinance.
+2025-03-15 11:10:18,527 - WARNING - GDP data is empty.
+2025-03-15 11:10:18,988 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
+2025-03-15 12:35:42,781 - INFO - Fetched data from yfinance.
+2025-03-15 12:35:43,057 - WARNING - GDP data is empty.
+2025-03-15 12:35:43,465 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
+2025-03-15 13:49:33,822 - WARNING - GDP data is empty.
+2025-03-15 13:49:34,260 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
+2025-03-15 13:51:44,293 - WARNING - GDP data is empty.
+2025-03-15 13:51:44,726 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
+2025-03-15 14:37:06,343 - WARNING - GDP data is empty.
+2025-03-15 14:37:06,744 - INFO - Aggregated Signal for AAPL: 0.7382568989977815
