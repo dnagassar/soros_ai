@@ -12,4 +12,5 @@ streamlit
 prophet
 requests
 alpaca-trade-api
-openai
+openai==0.28.0
+lxml
