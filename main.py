@@ -1,16 +1,25 @@
 # main.py
-from modules.asset_selector import select_top_assets
+import pandas as pd
 from modules.data_acquisition import fetch_price_data
-from modules.signal_aggregator import aggregate_signals
+from modules.ml_predictor import train_ensemble_model, predict_with_model
 from modules.logger import log_trade
-from modules.strategy import AdaptiveSentimentStrategy
-import backtrader as bt
 
-assets_to_trade = select_top_assets(n=10)
+# Fetch data
+data = fetch_price_data('AAPL', '2022-01-01', '2023-01-01')
+data.to_csv('data/historical_prices.csv')
 
-for symbol in assets_to_trade:
-    data = fetch_price_data(symbol, '2023-01-01', '2023-12-31')
-    data.to_csv(f'data/{symbol}_prices.csv')
+# Prepare data
+data['target'] = data['Close'].shift(-1)
+data.dropna(inplace=True)
+train_data = data.iloc[:-30]
+test_data = data.iloc[-30:].drop(columns='target')
 
-    # Further processing and trading logic here...
-    # e.g., run aggregation and trading strategy per asset
+# Train and predict with AutoGluon
+predictor = train_ensemble_model(train_data)
+predictions = predict_with_model(predictor, test_data)
+
+print("Predictions:", predictions)
+
+# Log predictions
+from modules.logger import log_trade
+log_trade(f"AutoGluon predictions generated successfully: {predictions.mean()}")

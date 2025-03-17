@@ -250,3 +250,29 @@
 2025-03-16 19:28:46,938 - ERROR - 
 1 Failed download:
 2025-03-16 19:28:46,938 - ERROR - ['BF.B']: YFPricesMissingError('possibly delisted; no price data found  (period=5d)')
+2025-03-17 12:51:18,835 - ERROR - 
+1 Failed download:
+2025-03-17 12:51:18,841 - ERROR - ['BRK.B']: YFPricesMissingError('possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")')
+2025-03-17 12:51:19,943 - ERROR - 
+1 Failed download:
+2025-03-17 12:51:19,943 - ERROR - ['BRK.B']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+2025-03-17 12:51:30,685 - ERROR - 
+1 Failed download:
+2025-03-17 12:51:30,686 - ERROR - ['BF.B']: YFPricesMissingError('possibly delisted; no price data found  (period=1mo)')
+2025-03-17 12:51:30,781 - ERROR - 
+1 Failed download:
+2025-03-17 12:51:30,781 - ERROR - ['BF.B']: YFPricesMissingError('possibly delisted; no price data found  (period=5d)')
+2025-03-17 13:27:27,409 - ERROR - 
+1 Failed download:
+2025-03-17 13:27:27,411 - ERROR - ['BRK.B']: YFPricesMissingError('possibly delisted; no price data found  (period=1mo) (Yahoo error = "No data found, symbol may be delisted")')
+2025-03-17 13:27:28,604 - ERROR - 
+1 Failed download:
+2025-03-17 13:27:28,604 - ERROR - ['BRK.B']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+2025-03-17 13:27:34,808 - ERROR - 
+1 Failed download:
+2025-03-17 13:27:34,808 - ERROR - ['BF.B']: YFPricesMissingError('possibly delisted; no price data found  (period=1mo)')
+2025-03-17 13:27:34,866 - ERROR - 
+1 Failed download:
+2025-03-17 13:27:34,867 - ERROR - ['BF.B']: YFPricesMissingError('possibly delisted; no price data found  (period=5d)')
+2025-03-17 13:57:07,779 - INFO - Test log entry
+2025-03-17 13:57:07,858 - ERROR - Failed to fetch GDP data: HTTP 429

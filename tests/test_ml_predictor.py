@@ -1,24 +1,23 @@
 import unittest
-import numpy as np
-from modules.ml_predictor import lstm_predict, prophet_predict, ensemble_predict
+import pandas as pd
+from modules.ml_predictor import train_ensemble_model, predict_with_model
 
 class TestMLPredictor(unittest.TestCase):
-    def test_lstm_predict(self):
-        X = np.random.rand(10, 5)
-        preds = lstm_predict(X)
-        self.assertEqual(len(preds), 10)
-    
-    def test_prophet_predict(self):
-        X = np.random.rand(10, 5)
-        preds = prophet_predict(X)
-        self.assertEqual(len(preds), 10)
-    
-    def test_ensemble_predict(self):
-        X_train = np.random.rand(100, 10)
-        y_train = np.random.rand(100)
-        X_test = np.random.rand(20, 10)
-        preds = ensemble_predict(X_train, y_train, X_test)
-        self.assertEqual(len(preds), 20)
+    def test_model_training_and_prediction(self):
+        df = pd.DataFrame({
+            'feature1': range(100),
+            'feature2': range(100, 200),
+            'target': [x * 0.5 for x in range(100)]
+        })
+
+        train_data = df.iloc[:80]
+        test_data = df.iloc[80:].drop(columns=['target'])
+
+        predictor = train_ensemble_model(train_data=train_data)
+        preds = predict_with_model(predictor, test_data)
+
+        self.assertEqual(len(preds), len(test_data))
+        self.assertIsNotNone(preds)
 
 if __name__ == '__main__':
     unittest.main()

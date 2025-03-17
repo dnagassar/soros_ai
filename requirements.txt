@@ -7,10 +7,8 @@ vaderSentiment
 numpy
 pandas
 scikit-learn
-hyperopt
 streamlit
 prophet
 requests
-alpaca-trade-api
-openai==0.28.0
-lxml
+autogluon
+optuna
