@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/73025b32abe0452d81610e6ed08bb06d/artifacts
+end_time: 1742325814441
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 73025b32abe0452d81610e6ed08bb06d
+run_name: valuable-ram-646
+run_uuid: 73025b32abe0452d81610e6ed08bb06d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1742325811708
+status: 3
+tags: []
+user_id: daniel

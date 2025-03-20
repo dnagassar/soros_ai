@@ -1,104 +1,104 @@
 # modules/asset_selector.py
-import yfinance as yf
-import pandas as pd
 import numpy as np
+import pandas as pd
+import yfinance as yf
 import requests
-from modules.sentiment_analysis import aggregate_sentiments
 from config import FMP_API_KEY
+from modules.sentiment_analysis import aggregate_sentiments
+from modules.news_social_monitor import get_combined_sentiment
 
-def fetch_asset_universe():
+def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Retrieves S&P 500 tickers from Wikipedia and returns the first 100 for efficiency.
+    Flattens MultiIndex columns if present.
     """
-    ticker_df = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
-    tickers = ticker_df['Symbol'].tolist()
-    return tickers[:100]
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [col[0] if col[0] != '' else col[1] for col in df.columns]
+    return df
+
+def fetch_asset_universe(index='^GSPC'):
+    try:
+        ticker_df = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
+        tickers = ticker_df['Symbol'].tolist()
+        return tickers if tickers else ["AAPL", "MSFT", "GOOG"]
+    except Exception as e:
+        print("Error fetching asset universe:", e)
+        return ["AAPL", "MSFT", "GOOG"]
 
 def calculate_momentum(ticker):
-    """
-    Computes momentum as percentage change over the last month.
-    """
-    data = yf.download(ticker, period='1mo', interval='1d')
-    if data.empty or len(data['Close']) < 2:
+    try:
+        data = yf.download(ticker, period='1mo', interval='1d')
+        data = flatten_columns(data)
+        if data.empty:
+            return -np.inf
+        momentum = (data['Close'].iloc[-1] / data['Close'].iloc[0]) - 1
+        return momentum
+    except Exception as e:
+        print(f"Error calculating momentum for {ticker}: {e}")
         return -np.inf
-    return float((data['Close'].iloc[-1] / data['Close'].iloc[0]) - 1)
+
+def calculate_volatility(ticker):
+    try:
+        data = yf.download(ticker, period='1mo', interval='1d')
+        data = flatten_columns(data)
+        if data.empty:
+            return np.inf
+        returns = data['Close'].pct_change().dropna()
+        volatility = returns.std()
+        return float(volatility)
+    except Exception as e:
+        print(f"Error calculating volatility for {ticker}: {e}")
+        return np.inf
 
 def fetch_volume(ticker):
-    """
-    Returns average daily volume over the last 5 days.
-    Explicitly converts pandas Series mean to scalar float.
-    """
-    data = yf.download(ticker, period='5d', interval='1d')
-    if data.empty or len(data['Volume']) < 1:
-        return 0
-    return float(data['Volume'].mean())
-
-def get_sentiment_score(ticker):
-    """
-    Retrieves recent news sentiment score for the given ticker.
-    """
-    url = f"https://financialmodelingprep.com/api/v3/stock_news?tickers={ticker}&limit=5&apikey={FMP_API_KEY}"
-    response = requests.get(url).json()
-    if not response:
+    try:
+        data = yf.download(ticker, period='5d', interval='1d')
+        data = flatten_columns(data)
+        if data.empty:
+            return 0
+        return data['Volume'].mean().item()
+    except Exception as e:
+        print(f"Error fetching volume for {ticker}: {e}")
         return 0
 
-    scores = []
-    for news_item in response:
-        if isinstance(news_item, dict) and 'title' in news_item:
-            title = news_item['title']
-        else:
-            title = str(news_item)
-        result = aggregate_sentiments(title)
-        score = result.get('score', 0)
-        score = float(score)
-        score = np.clip(score, -1, 1)
-        scores.append(score)
-
-    return float(np.mean(scores))
-
-def score_asset(ticker):
+def get_sentiment_score(ticker, use_social=False):
     """
-    Generates a composite score combining momentum and sentiment.
-    Filters out low liquidity assets explicitly handling potential issues.
+    Returns the sentiment score for a given ticker.
+    If use_social is True, it uses combined sentiment from Reddit, StockTwits, and RSS feeds.
+    Otherwise, it falls back to a basic sentiment extraction.
     """
+    if use_social:
+        score_dict = get_combined_sentiment(ticker, symbol=ticker)
+        return score_dict.get("score", 0)
+    else:
+        base_sentiment = aggregate_sentiments("Recent news for " + ticker)
+        return base_sentiment.get("score", 0)
+
+def score_asset(ticker, use_social=False):
     momentum = calculate_momentum(ticker)
+    volatility = calculate_volatility(ticker)
     volume = fetch_volume(ticker)
-    sentiment = get_sentiment_score(ticker)
-
-    # Ensure all values are scalar floats
-    if volume < 1e6 or momentum <= -np.inf:
+    sentiment = get_sentiment_score(ticker, use_social)
+    
+    if volume < 1e6:
         return -np.inf
 
-    composite_score = (0.6 * momentum) + (0.4 * sentiment)
-    return composite_score
+    volatility_score = 1 / volatility if volatility > 0 else 0
+    weight_momentum = 0.4
+    weight_sentiment = 0.4
+    weight_volatility = 0.2
 
-def select_top_assets(n=10):
-    """
-    Selects the top N assets based on their composite scores.
-    """
+    score = (momentum * weight_momentum) + (sentiment * weight_sentiment) + (volatility_score * weight_volatility)
+    return score
+
+def select_top_assets(n=10, use_social=False):
     tickers = fetch_asset_universe()
     scores = {}
     for ticker in tickers:
-        try:
-            score = score_asset(ticker)
-            if np.isnan(score):
-                score = -np.inf
-        except Exception as e:
-            print(f"Error scoring {ticker}: {e}")
-            score = -np.inf
-
-        scores[ticker] = score
-        print(f"{ticker} scored {score}")
-
-    sorted_assets = sorted(
-        ((ticker, score) for ticker, score in scores.items() if score > -np.inf),
-        key=lambda x: x[1],
-        reverse=True
-    )
-
-    top_assets = [ticker for ticker, score in sorted_assets[:n]]
+        scores[ticker] = score_asset(ticker, use_social)
+    sorted_assets = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    top_assets = [ticker for ticker, score in sorted_assets[:n] if score != -np.inf]
     return top_assets
 
 if __name__ == "__main__":
-    top_assets = select_top_assets(n=10)
+    top_assets = select_top_assets(n=10, use_social=True)
     print("Dynamic Watchlist:", top_assets)

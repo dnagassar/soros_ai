@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/0d8a10b767b74babb5458627873cc616/artifacts
+end_time: 1742403473553
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 0d8a10b767b74babb5458627873cc616
+run_name: smiling-finch-309
+run_uuid: 0d8a10b767b74babb5458627873cc616
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1742403468945
+status: 3
+tags: []
+user_id: daniel

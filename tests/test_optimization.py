@@ -1,12 +1,22 @@
 import unittest
-from modules.optimization import optimize_parameters
+import os
+import pandas as pd
+from modules.optimization import optimize_autogluon
 
 class TestOptimization(unittest.TestCase):
-    def test_optimize_parameters(self):
-        # Run a quick optimization (fewer evaluations for testing purposes)
-        best_params = optimize_parameters(max_evals=10)
-        self.assertIn('lookback_period', best_params)
-        self.assertIn('threshold', best_params)
+    def setUp(self):
+        # Create data directory if it doesn't exist
+        if not os.path.exists("../data"):
+            os.makedirs("../data")
+        dummy_file = "../data/historical_prices.csv"
+        if not os.path.isfile(dummy_file):
+            df = pd.DataFrame({'Close': [100 + i for i in range(500)]})
+            df.to_csv(dummy_file, index=False)
+
+    def test_optimize_autogluon(self):
+        best_params, best_rmse = optimize_autogluon(n_trials=1)
+        self.assertIsInstance(best_params, dict)
+        self.assertIsInstance(best_rmse, float)
 
 if __name__ == '__main__':
     unittest.main()

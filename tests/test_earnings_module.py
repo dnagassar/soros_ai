@@ -3,7 +3,6 @@ from modules.earnings_module import get_upcoming_earnings
 
 class TestEarningsModule(unittest.TestCase):
     def test_get_upcoming_earnings(self):
-        # Validate that the earnings function returns an expected string.
         result = get_upcoming_earnings("AAPL")
         self.assertIn(result, ["EVENT_PENDING", "NO_EVENT"])
 

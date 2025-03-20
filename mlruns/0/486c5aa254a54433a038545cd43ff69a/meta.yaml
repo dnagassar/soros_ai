@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/486c5aa254a54433a038545cd43ff69a/artifacts
+end_time: 1742402702026
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 486c5aa254a54433a038545cd43ff69a
+run_name: awesome-stoat-253
+run_uuid: 486c5aa254a54433a038545cd43ff69a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1742402700438
+status: 3
+tags: []
+user_id: daniel

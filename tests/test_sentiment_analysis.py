@@ -3,19 +3,16 @@ from modules.sentiment_analysis import analyze_sentiment_hf, analyze_sentiment_v
 
 class TestSentimentAnalysis(unittest.TestCase):
     def test_analyze_sentiment_hf(self):
-        text = "Market is bullish."
-        result = analyze_sentiment_hf(text)
+        result = analyze_sentiment_hf("The market is bullish")
         self.assertIn('label', result)
         self.assertIn('score', result)
-    
+
     def test_analyze_sentiment_vader(self):
-        text = "Market is bullish."
-        result = analyze_sentiment_vader(text)
+        result = analyze_sentiment_vader("The market is bearish")
         self.assertIn('compound', result)
-    
+
     def test_aggregate_sentiments(self):
-        text = "Market is bullish."
-        result = aggregate_sentiments(text)
+        result = aggregate_sentiments("The market is bullish")
         self.assertIn('sentiment', result)
         self.assertIn('score', result)
 
