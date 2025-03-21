@@ -15,3 +15,5 @@ praw
 feedparser
 autogluon
 optuna
+tiingo
+quandl
