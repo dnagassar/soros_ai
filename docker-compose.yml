@@ -1,0 +1,37 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  trading-system:
+    build: .
+    image: trading-system:latest
+    container_name: trading-system
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+      - ./config.py:/app/config.py
+    ports:
+      - "8501:8501"  # Streamlit dashboard port
+    environment:
+      - TRADING_MODE=paper
+      - RISK_TOLERANCE=medium
+
+  mlflow:
+    image: mlflow:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: mlflow-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+    command: mlflow server --host 0.0.0.0
+
+networks:
+  default:
+    name: trading-network

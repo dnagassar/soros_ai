@@ -17,3 +17,9 @@ autogluon
 optuna
 tiingo
 quandl
+alpaca-py
+mlflow
+tensorflow
+scikit-learn
+docker
+docker-compose
