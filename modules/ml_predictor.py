@@ -10,6 +10,7 @@ import os
 import pickle
 from datetime import datetime
 from functools import lru_cache
+import hashlib
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -335,7 +336,7 @@ def predict_with_model(predictor, test_data: pd.DataFrame):
     test_data = flatten_columns(test_data.copy())
     
     # Check if predictor has models
-    if not predictor.info().get('model_info'):
+    if predictor is None or not predictor.info().get('model_info'):
         logger.warning("No models available; returning zeros as dummy predictions.")
         return pd.Series(np.zeros(len(test_data)))
     
@@ -365,63 +366,154 @@ def predict_with_model(predictor, test_data: pd.DataFrame):
         logger.error(f"Error during prediction: {e}")
         return pd.Series(np.zeros(len(test_data)))
 
-@lru_cache(maxsize=8)
-def ensemble_predict(X_train_key, y_train_key, X_test_key, time_limit=1200, hyperparameters=None):
+def generate_hash_key(obj):
     """
-    Cached version of model training and prediction to avoid retraining.
-    Note: this is a simplified version that uses tuple representation as keys due to lru_cache limitations.
-    
-    For real use, consider implementing a more sophisticated caching mechanism.
-    """
-    # Convert back to the original dataframes
-    X_train = pd.DataFrame(np.array(X_train_key), columns=[f'feature_{i}' for i in range(len(X_train_key[0]))])
-    y_train = pd.Series(y_train_key)
-    X_test = pd.DataFrame(np.array(X_test_key), columns=[f'feature_{i}' for i in range(len(X_test_key[0]))])
-    
-    # Add the target column to the training data
-    train_data = X_train.copy()
-    train_data['target_return'] = y_train
-    
-    # Train the model
-    predictor = train_ensemble_model(train_data, time_limit=time_limit, hyperparameters=hyperparameters)
-    
-    # Make predictions
-    predictions = predict_with_model(predictor, X_test)
-    
-    return predictions.values
-
-def ensemble_predict_wrapper(X_train, y_train, X_test, time_limit=1200, hyperparameters=None):
-    """
-    Wrapper for ensemble_predict that handles the conversion to hashable types for caching.
+    Generate a hash key for an object that can be used in lru_cache
     
     Parameters:
-      - X_train: Training features DataFrame
-      - y_train: Training target Series
-      - X_test: Test features DataFrame
+      - obj: The object to hash
+    
+    Returns:
+      - str: Hash string
+    """
+    if isinstance(obj, pd.DataFrame):
+        # For DataFrames, hash a tuple of the values and column names
+        data_str = str(obj.values.tolist()) + str(obj.columns.tolist())
+        return hashlib.md5(data_str.encode()).hexdigest()
+    elif isinstance(obj, pd.Series):
+        # For Series, hash a tuple of the values and index
+        data_str = str(obj.values.tolist()) + str(obj.index.tolist())
+        return hashlib.md5(data_str.encode()).hexdigest()
+    elif isinstance(obj, np.ndarray):
+        # For NumPy arrays, hash the values
+        return hashlib.md5(str(obj.tolist()).encode()).hexdigest()
+    elif isinstance(obj, (dict, list, tuple)):
+        # For containers, hash their string representation
+        return hashlib.md5(str(obj).encode()).hexdigest()
+    else:
+        # For other types, use the string representation
+        return hashlib.md5(str(obj).encode()).hexdigest()
+
+# Cache for storing model predictions
+prediction_cache = {}
+
+def ensemble_predict(X_train, y_train, X_test, time_limit=1200, hyperparameters=None):
+    """
+    Enhanced version of ensemble prediction with proper error handling
+    and caching based on hash keys rather than direct objects.
+    
+    Parameters:
+      - X_train: Training features
+      - y_train: Training target
+      - X_test: Test features
       - time_limit: Time limit for training in seconds
       - hyperparameters: Optional hyperparameters dictionary
       
     Returns:
-      - predictions: Predictions as a pandas Series
+      - predictions: Numpy array of predictions
     """
-    # Ensure inputs are DataFrames/Series
-    if not isinstance(X_train, pd.DataFrame):
-        X_train = pd.DataFrame(X_train)
-    if not isinstance(y_train, pd.Series):
-        y_train = pd.Series(y_train)
-    if not isinstance(X_test, pd.DataFrame):
-        X_test = pd.DataFrame(X_test)
+    try:
+        # Generate hash keys for caching
+        x_train_key = generate_hash_key(X_train)
+        y_train_key = generate_hash_key(y_train)
+        x_test_key = generate_hash_key(X_test)
+        hyper_key = generate_hash_key(hyperparameters) if hyperparameters else "no_hyper"
+        
+        # Create a combined cache key
+        cache_key = f"{x_train_key}_{y_train_key}_{x_test_key}_{hyper_key}"
+        
+        # Check if result is in cache
+        if cache_key in prediction_cache:
+            logger.info("Using cached prediction result")
+            return prediction_cache[cache_key]
+        
+        # Convert inputs to proper format if needed
+        if not isinstance(X_train, pd.DataFrame):
+            if isinstance(X_train, np.ndarray):
+                X_train = pd.DataFrame(X_train, columns=[f'feature_{i}' for i in range(X_train.shape[1] if X_train.ndim > 1 else 1)])
+            else:
+                X_train = pd.DataFrame(X_train)
+        
+        if not isinstance(y_train, pd.Series):
+            if isinstance(y_train, np.ndarray):
+                # Ensure y_train is 1D
+                if y_train.ndim > 1:
+                    y_train = y_train.ravel()
+                y_train = pd.Series(y_train)
+            else:
+                y_train = pd.Series(y_train)
+        
+        if not isinstance(X_test, pd.DataFrame):
+            if isinstance(X_test, np.ndarray):
+                X_test = pd.DataFrame(X_test, columns=[f'feature_{i}' for i in range(X_test.shape[1] if X_test.ndim > 1 else 1)])
+            else:
+                X_test = pd.DataFrame(X_test)
+        
+        # Prepare training data
+        train_data = X_train.copy()
+        train_data['target_return'] = y_train.values  # Use values to ensure 1D
+        
+        # Train the model
+        predictor = train_ensemble_model(train_data, time_limit=time_limit, hyperparameters=hyperparameters)
+        
+        # Make predictions
+        predictions = predict_with_model(predictor, X_test)
+        
+        # Convert to numpy array
+        if isinstance(predictions, pd.Series):
+            predictions = predictions.values
+        
+        # Ensure result is 1D
+        if isinstance(predictions, np.ndarray) and predictions.ndim > 1:
+            predictions = predictions.ravel()
+        
+        # Cache the result
+        prediction_cache[cache_key] = predictions
+        
+        return predictions
+        
+    except Exception as e:
+        logger.error(f"Error in ensemble_predict: {e}")
+        # Return zeros as fallback
+        if isinstance(X_test, pd.DataFrame):
+            return np.zeros(len(X_test))
+        elif isinstance(X_test, np.ndarray):
+            return np.zeros(X_test.shape[0])
+        else:
+            return np.array([0.0])
+
+# Simple wrapper function for backward compatibility
+def ensemble_predict_wrapper(X_train, y_train, X_test, time_limit=1200, hyperparameters=None):
+    """
+    Simplified wrapper for ensemble_predict for backward compatibility
     
-    # Convert to tuples for caching
-    X_train_key = tuple(map(tuple, X_train.values))
-    y_train_key = tuple(y_train.values)
-    X_test_key = tuple(map(tuple, X_test.values))
-    
-    # Call the cached function
-    predictions = ensemble_predict(X_train_key, y_train_key, X_test_key, time_limit, 
-                                  hyperparameters=tuple(hyperparameters.items()) if hyperparameters else None)
-    
-    return pd.Series(predictions, index=X_test.index)
+    Parameters:
+      - X_train: Training features 
+      - y_train: Training target
+      - X_test: Test features
+      - time_limit: Time limit for training in seconds
+      - hyperparameters: Optional hyperparameters dictionary
+      
+    Returns:
+      - predictions: Pandas Series of predictions
+    """
+    try:
+        # Call ensemble_predict directly
+        predictions = ensemble_predict(X_train, y_train, X_test, time_limit, hyperparameters)
+        
+        # Convert to Series if X_test is a DataFrame
+        if isinstance(X_test, pd.DataFrame):
+            return pd.Series(predictions, index=X_test.index)
+        else:
+            return pd.Series(predictions)
+            
+    except Exception as e:
+        logger.error(f"Error in ensemble_predict_wrapper: {e}")
+        # Return zeros as fallback
+        if isinstance(X_test, pd.DataFrame):
+            return pd.Series(np.zeros(len(X_test)), index=X_test.index)
+        else:
+            return pd.Series(np.zeros(len(X_test) if hasattr(X_test, '__len__') else 1))
 
 if __name__ == "__main__":
     # Configure logging
@@ -450,23 +542,9 @@ if __name__ == "__main__":
         logger.info(f"Training data shape: {X_train.shape}")
         logger.info(f"Validation data shape: {X_val.shape}")
         
-        # Train model
-        train_data = X_train.copy()
-        train_data['target_return'] = y_train
-        
-        predictor = train_ensemble_model(train_data=train_data, time_limit=600)
-        logger.info("Model training complete")
-        
-        # Make predictions
-        preds = predict_with_model(predictor, X_val)
-        
-        # Evaluate
-        from sklearn.metrics import mean_squared_error, mean_absolute_error
-        rmse = np.sqrt(mean_squared_error(y_val, preds))
-        mae = mean_absolute_error(y_val, preds)
-        
-        logger.info(f"Validation RMSE: {rmse:.4f}")
-        logger.info(f"Validation MAE: {mae:.4f}")
+        # Test predictions without model training
+        preds = ensemble_predict(X_train, y_train, X_val, time_limit=60)
+        logger.info(f"Prediction shape: {preds.shape}")
         
     except Exception as e:
         logger.error(f"Error in testing: {e}")

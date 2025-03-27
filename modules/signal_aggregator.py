@@ -1,4 +1,4 @@
-# modules/signal_aggregator.py (improved version)
+# modules/signal_aggregator.py
 import numpy as np
 import pandas as pd
 import logging
@@ -7,6 +7,7 @@ import pickle
 import os
 import json
 import hashlib
+from modules.ml_predictor import ensemble_predict
 
 logger = logging.getLogger(__name__)
 
@@ -149,11 +150,69 @@ class SignalAggregator:
             return 0.0
     
     def get_ml_signal(self, symbol, X_train, y_train, X_test, force_refresh=False):
-        """Get ML prediction signal with improved validation"""
-        # Implementation of ML signal generation
-        # This would call the ML predictor module
-        # For this example, I'll just return a placeholder signal
-        return 0.1  # Placeholder positive ML signal
+        """
+        Get machine learning prediction signal
+        
+        Parameters:
+          - symbol: Asset symbol
+          - X_train: Training features
+          - y_train: Training target
+          - X_test: Test features
+          - force_refresh: Force refresh the signal
+          
+        Returns:
+          - float: ML prediction signal (-1 to 1)
+        """
+        # Check cache if not forcing refresh
+        if not force_refresh:
+            cached_signal, age = self.load_cached_signal('ml', symbol)
+            if cached_signal is not None:
+                logger.debug(f"Using cached ML signal for {symbol} (age: {age:.0f}s)")
+                return cached_signal
+        
+        try:
+            # Check if we have sufficient data
+            if X_train is None or y_train is None or X_test is None:
+                logger.warning(f"Insufficient data for ML prediction for {symbol}")
+                return 0.0
+            
+            if len(X_train) < 30 or len(y_train) < 30:
+                logger.warning(f"Training data too small for {symbol}: {len(X_train)} samples")
+                return 0.0
+            
+            # Make predictions
+            predictions = ensemble_predict(X_train, y_train, X_test, time_limit=600)
+            
+            if predictions is None or len(predictions) == 0:
+                logger.warning(f"No predictions generated for {symbol}")
+                return 0.0
+            
+            # Ensure predictions are 1-dimensional
+            if isinstance(predictions, np.ndarray) and predictions.ndim > 1:
+                predictions = predictions.flatten()
+            
+            # For classification target (directional prediction)
+            if np.all(np.isin(y_train.unique(), [-1, 0, 1])):
+                # Average prediction (should be in range -1 to 1)
+                avg_pred = predictions.mean()
+                signal = min(max(avg_pred, -1), 1)
+            
+            # For regression target (return prediction)
+            else:
+                # Normalize prediction to -1 to 1 range
+                # Assume predictions are daily returns, scale to make more sensitive
+                pred_return = predictions.mean()
+                signal = min(max(pred_return * 50, -1), 1)  # Scale by 50 for sensitivity
+            
+            # Cache the result
+            self.save_cached_signal('ml', symbol, signal)
+            
+            logger.info(f"ML signal for {symbol}: {signal:.2f}")
+            return signal
+            
+        except Exception as e:
+            logger.error(f"Error getting ML signal for {symbol}: {e}")
+            return 0.0
     
     def get_macro_signal(self, symbol=None, force_refresh=False):
         """Get macroeconomic signal with improved context"""
@@ -313,3 +372,65 @@ class SignalAggregator:
         # If most signals agree, medium confidence
         max_agreement = max(positive_count, negative_count, neutral_count)
         return max_agreement / len(values)
+
+
+def aggregate_signals(news_text, technical_signal, symbol, X_train, y_train, X_test, signal_ages,
+                     social_query=None):
+    """
+    Legacy function to maintain backward compatibility with original code
+    """
+    # Create a SignalAggregator instance
+    aggregator = SignalAggregator()
+    
+    # Load price data for the symbol
+    price_data = None
+    if isinstance(X_test, pd.DataFrame) and not X_test.empty:
+        # Try to use X_test as price data
+        price_data = X_test.copy()
+    
+    # Convert the technical_signal to a numerical value if it's not already
+    if not isinstance(technical_signal, (int, float)):
+        try:
+            technical_signal = float(technical_signal)
+        except (ValueError, TypeError):
+            technical_signal = 0
+    
+    # Override the technical signal if price data is available
+    if technical_signal != 0 and price_data is None:
+        # Create a temporary price data with just enough to override the technical signal
+        dummy_data = {'Close': [100] * 50}
+        for i in range(1, 50):
+            dummy_data['Close'][i] = dummy_data['Close'][i-1] * (1 + np.random.normal(0, 0.005))
+        
+        price_data = pd.DataFrame(dummy_data)
+        aggregator.signal_cache['technical_' + symbol] = technical_signal
+    
+    # Prepare signal ages if provided
+    if signal_ages and len(signal_ages) >= 5:
+        # Expected order: sentiment, technical, macro, earnings, ml
+        current_time = datetime.now()
+        
+        for i, (signal_type, age) in enumerate([
+            ('sentiment', signal_ages[0]), 
+            ('technical', signal_ages[1]), 
+            ('macro', signal_ages[2]), 
+            ('earnings', signal_ages[3]), 
+            ('ml', signal_ages[4])
+        ]):
+            if age > 0:
+                cache_key = f"{signal_type}_{symbol}"
+                aggregator.signal_age[cache_key] = current_time - timedelta(days=age)
+    
+    # Aggregate the signals
+    result = aggregator.aggregate_signals(
+        symbol=symbol,
+        price_data=price_data,
+        news_text=news_text,
+        social_query=social_query,
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test
+    )
+    
+    # Return just the final signal for backward compatibility
+    return result['signal']

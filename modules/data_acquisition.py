@@ -441,7 +441,7 @@ def fetch_price_data(ticker, start, end):
             data['Volume'] = 0
         
         # Fill any NaN values
-        data = data.fillna(method='ffill').fillna(method='bfill')
+        data = data.ffill().bfill()
         
         # If still NaN, fill with reasonable defaults
         if data.isna().any().any():
