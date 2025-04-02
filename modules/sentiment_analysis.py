@@ -1,8 +1,8 @@
 # modules/sentiment_analysis.py
 """
-Sentiment analysis module for analyzing text data from news and social media
+Enhanced sentiment analysis module for analyzing text data from news and social media
+with support for both VADER and FinBERT models
 """
-import openai
 import nltk
 import re
 import os
@@ -10,15 +10,15 @@ import json
 import logging
 import time
 import pickle
+import torch
+import numpy as np
 from datetime import datetime, timedelta
 from nltk.sentiment import SentimentIntensityAnalyzer
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from config import OPENAI_API_KEY
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-# Initialize OpenAI API
-openai.api_key = OPENAI_API_KEY
 
 # Initialize NLTK resources if not already downloaded
 try:
@@ -33,6 +33,25 @@ vader = SentimentIntensityAnalyzer()
 # Cache directory for sentiment results
 CACHE_DIR = 'cache/sentiment'
 os.makedirs(CACHE_DIR, exist_ok=True)
+
+# FinBERT model and tokenizer (lazy-loaded when needed)
+finbert_model = None
+finbert_tokenizer = None
+
+def initialize_finbert():
+    """Initialize FinBERT model and tokenizer"""
+    global finbert_model, finbert_tokenizer
+    
+    try:
+        # Load FinBERT model and tokenizer
+        model_name = "ProsusAI/finbert"
+        finbert_tokenizer = AutoTokenizer.from_pretrained(model_name)
+        finbert_model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        logger.info("FinBERT model initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error initializing FinBERT model: {e}")
+        return False
 
 def clean_text(text):
     """Clean and normalize text for sentiment analysis"""
@@ -53,9 +72,9 @@ def clean_text(text):
     
     return text
 
-def get_cached_sentiment(text_hash):
+def get_cached_sentiment(text_hash, method):
     """Check if we have a cached sentiment result for the text"""
-    cache_file = os.path.join(CACHE_DIR, f"{text_hash}.pickle")
+    cache_file = os.path.join(CACHE_DIR, f"{text_hash}_{method}.pickle")
     
     if os.path.exists(cache_file):
         try:
@@ -68,9 +87,9 @@ def get_cached_sentiment(text_hash):
     
     return None
 
-def save_cached_sentiment(text_hash, result):
+def save_cached_sentiment(text_hash, method, result):
     """Save sentiment result to cache"""
-    cache_file = os.path.join(CACHE_DIR, f"{text_hash}.pickle")
+    cache_file = os.path.join(CACHE_DIR, f"{text_hash}_{method}.pickle")
     
     try:
         with open(cache_file, 'wb') as f:
@@ -113,62 +132,65 @@ def analyze_with_vader(text):
             "method": "vader"
         }
 
-def analyze_with_openai(text, symbol=None):
-    """Analyze sentiment using OpenAI API"""
-    if not OPENAI_API_KEY:
-        logger.warning("OpenAI API key not configured, falling back to VADER")
-        return analyze_with_vader(text)
+def analyze_with_finbert(text):
+    """Analyze sentiment using FinBERT"""
+    global finbert_model, finbert_tokenizer
+    
+    # Initialize FinBERT if needed
+    if finbert_model is None or finbert_tokenizer is None:
+        if not initialize_finbert():
+            logger.warning("Failed to initialize FinBERT, falling back to VADER")
+            return analyze_with_vader(text)
     
     try:
-        # Limit text length for API call
-        if len(text) > 4000:
-            text = text[:4000] + "..."
+        # Tokenize the text
+        inputs = finbert_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
         
-        prompt = f"""
-        Analyze the sentiment of the following text about {symbol if symbol else 'a financial asset'}.
-        Return a JSON object with:
-        1. "score": a score from -1 (extremely negative) to 1 (extremely positive)
-        2. "label": "POSITIVE", "NEGATIVE", or "NEUTRAL"
-        3. "summary": a brief 1-2 sentence summary of the key sentiment drivers
+        # Get predictions
+        with torch.no_grad():
+            outputs = finbert_model(**inputs)
+            scores = outputs.logits.softmax(dim=1)[0].tolist()
         
-        Text to analyze:
-        "{text}"
+        # FinBERT class order: negative, neutral, positive
+        label_map = ["NEGATIVE", "NEUTRAL", "POSITIVE"]
+        predicted_class = scores.index(max(scores))
+        label = label_map[predicted_class]
         
-        JSON response:
-        """
+        # Convert to a -1 to 1 score 
+        # (negative=-1, neutral=0, positive=1, weighted by confidence)
+        if predicted_class == 0:  # Negative
+            score = -scores[0]
+        elif predicted_class == 2:  # Positive
+            score = scores[2]
+        else:  # Neutral
+            score = 0
         
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # Use appropriate model
-            messages=[
-                {"role": "system", "content": "You are a financial sentiment analysis expert. Analyze the given text and return JSON with sentiment analysis results."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,  # Low temperature for consistent results
-            max_tokens=150,   # Keep response concise
-            response_format={"type": "json_object"}
-        )
-        
-        result = json.loads(response.choices[0].message.content)
-        
-        # Ensure all expected fields are present
-        result.setdefault("score", 0)
-        result.setdefault("label", "NEUTRAL")
-        result.setdefault("summary", "No summary provided")
-        result["method"] = "openai"
-        
-        return result
-    
+        return {
+            "score": score,
+            "label": label,
+            "details": {
+                "negative": scores[0],
+                "neutral": scores[1],
+                "positive": scores[2]
+            },
+            "method": "finbert"
+        }
     except Exception as e:
-        logger.error(f"Error in OpenAI sentiment analysis: {e}, falling back to VADER")
-        return analyze_with_vader(text)
+        logger.error(f"Error in FinBERT sentiment analysis: {e}")
+        return {
+            "score": 0,
+            "label": "NEUTRAL",
+            "details": {"error": str(e)},
+            "method": "finbert"
+        }
 
-def analyze_sentiment(text, method="hybrid", symbol=None):
+def analyze_sentiment(text, method="vader", symbol=None):
     """
     Analyze sentiment of text using specified method
     
     Parameters:
       - text: Text to analyze
-      - method: Sentiment analysis method ('vader', 'openai', or 'hybrid')
+      - method: Sentiment analysis method ('vader', 'finbert')
       - symbol: Optional symbol for context
       
     Returns:
@@ -177,11 +199,11 @@ def analyze_sentiment(text, method="hybrid", symbol=None):
     # Clean text
     cleaned_text = clean_text(text)
     
-    # Generate a simple hash for caching
-    text_hash = str(hash(cleaned_text + method + (symbol or "")))
+    # Generate a hash for caching
+    text_hash = str(hash(cleaned_text + (symbol or "")))
     
     # Check cache
-    cached_result = get_cached_sentiment(text_hash)
+    cached_result = get_cached_sentiment(text_hash, method)
     if cached_result:
         return cached_result
     
@@ -193,42 +215,31 @@ def analyze_sentiment(text, method="hybrid", symbol=None):
             "details": {"error": "No text provided"},
             "method": method
         }
-        save_cached_sentiment(text_hash, result)
+        save_cached_sentiment(text_hash, method, result)
         return result
     
     # Analyze based on method
-    if method == "vader":
+    if method.lower() == "finbert":
+        result = analyze_with_finbert(cleaned_text)
+    else:  # Default to VADER
         result = analyze_with_vader(cleaned_text)
-    elif method == "openai":
-        result = analyze_with_openai(cleaned_text, symbol)
-    else:  # hybrid approach
-        try:
-            # First try with OpenAI if API key is available
-            if OPENAI_API_KEY:
-                result = analyze_with_openai(cleaned_text, symbol)
-            else:
-                # Fall back to VADER if no API key
-                result = analyze_with_vader(cleaned_text)
-        except Exception:
-            # Fall back to VADER on any error
-            result = analyze_with_vader(cleaned_text)
     
     # Add timestamp
     result["timestamp"] = datetime.now().isoformat()
     
     # Cache result
-    save_cached_sentiment(text_hash, result)
+    save_cached_sentiment(text_hash, method, result)
     
     return result
 
-def aggregate_sentiments(texts, weights=None, method="hybrid", symbol=None):
+def aggregate_sentiments(texts, weights=None, method="vader", symbol=None):
     """
     Aggregate sentiments from multiple text sources
     
     Parameters:
       - texts: List of texts or single text
       - weights: Optional weights for each text
-      - method: Sentiment analysis method
+      - method: Sentiment analysis method ('vader', 'finbert')
       - symbol: Optional symbol for context
       
     Returns:
@@ -274,49 +285,65 @@ def aggregate_sentiments(texts, weights=None, method="hybrid", symbol=None):
     else:
         label = "NEUTRAL"
     
-    # Collect summaries if available
-    summaries = [r.get("summary") for r in results if r.get("summary")]
-    
     return {
         "score": weighted_score,
         "label": label,
         "details": {
             "individual_results": results,
-            "weights": weights,
-            "summaries": summaries[:3]  # Limit to top 3 summaries
+            "weights": weights
         },
         "method": method,
         "timestamp": datetime.now().isoformat()
     }
 
-def get_market_sentiment_score(symbol=None, lookback_days=1):
+def get_market_sentiment_score(symbol=None, lookback_days=1, method="vader"):
     """
     Get overall market sentiment score
     
     Parameters:
       - symbol: Optional specific symbol (None for market)
       - lookback_days: Days to look back for sentiment
+      - method: Sentiment analysis method ('vader', 'finbert')
       
     Returns:
       - float: Sentiment score (-1 to 1)
     """
     # In a real implementation, this would aggregate from multiple sources
-    # For now, return a mildly positive sentiment as a placeholder
-    return 0.2
+    # For now, return a placeholder implementation
+    
+    # Generate search query based on symbol
+    if symbol:
+        query = f"{symbol} stock market news"
+    else:
+        query = "stock market outlook economy"
+    
+    try:
+        # This is a placeholder - in a real system, you would fetch actual news
+        sample_texts = [
+            f"Latest market updates for {symbol or 'the market'}",
+            f"Recent financial news about {symbol or 'global markets'}"
+        ]
+        
+        # Analyze sentiment
+        result = aggregate_sentiments(sample_texts, method=method, symbol=symbol)
+        return result["score"]
+        
+    except Exception as e:
+        logger.error(f"Error getting market sentiment: {e}")
+        return 0.0  # Neutral sentiment on error
 
 if __name__ == "__main__":
-    # Example usage
+    # Configure logging for standalone testing
     logging.basicConfig(level=logging.INFO)
     
-    # Test individual text analysis
+    # Test individual text analysis with both methods
     test_text = "The company reported strong earnings, beating analyst expectations. Revenue grew by 15% year-over-year, but there are concerns about rising costs."
     
-    result = analyze_sentiment(test_text, method="vader", symbol="AAPL")
-    print(f"VADER result: {json.dumps(result, indent=2)}")
+    vader_result = analyze_sentiment(test_text, method="vader", symbol="AAPL")
+    print(f"VADER result: {json.dumps(vader_result, indent=2)}")
     
-    if OPENAI_API_KEY:
-        result = analyze_sentiment(test_text, method="openai", symbol="AAPL")
-        print(f"OpenAI result: {json.dumps(result, indent=2)}")
+    finbert_result = analyze_sentiment(test_text, method="finbert", symbol="AAPL")
+    print(f"FinBERT result: {json.dumps(finbert_result, indent=2)}")
     
     # Test aggregation
     texts = [
@@ -327,5 +354,15 @@ if __name__ == "__main__":
     
     weights = [0.5, 0.3, 0.2]
     
-    result = aggregate_sentiments(texts, weights, method="vader", symbol="AAPL")
-    print(f"Aggregated result: {json.dumps(result, indent=2)}")
+    vader_agg_result = aggregate_sentiments(texts, weights, method="vader", symbol="AAPL")
+    print(f"VADER Aggregated result: {json.dumps(vader_agg_result, indent=2)}")
+    
+    finbert_agg_result = aggregate_sentiments(texts, weights, method="finbert", symbol="AAPL")
+    print(f"FinBERT Aggregated result: {json.dumps(finbert_agg_result, indent=2)}")
+    
+    # Test market sentiment score
+    market_score = get_market_sentiment_score(method="vader")
+    print(f"Market sentiment score (VADER): {market_score}")
+    
+    symbol_score = get_market_sentiment_score(symbol="AAPL", method="finbert")
+    print(f"AAPL sentiment score (FinBERT): {symbol_score}")

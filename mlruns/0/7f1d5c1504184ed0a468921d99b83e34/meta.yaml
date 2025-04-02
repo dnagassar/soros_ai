@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/danie/Desktop/soros_ai_trading/mlruns/0/7f1d5c1504184ed0a468921d99b83e34/artifacts
+end_time: 1743151704361
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 7f1d5c1504184ed0a468921d99b83e34
+run_name: marvelous-hen-216
+run_uuid: 7f1d5c1504184ed0a468921d99b83e34
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1743151470341
+status: 3
+tags: []
+user_id: daniel
