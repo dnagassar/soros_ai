@@ -284,16 +284,38 @@ def fetch_from_quandl(ticker, start, end):
         logger.warning(f"Quandl error for {ticker}: {str(e)}")
         raise e
 
-def generate_synthetic_data(ticker, start, end, reference_ticker="SPY"):
+def generate_synthetic_data(ticker, start, end, reference_ticker="SPY", _depth=0):
+    """Generate synthetic price data when real data cannot be retrieved.
+
+    To avoid infinite recursion when the reference ticker is also missing,
+    the function limits how many times it will attempt to fetch reference
+    data by using the ``_depth`` argument.
     """
-    Generate synthetic price data based on a reference ticker (like SPY)
-    when no data is available from any source
-    """
-    logger.warning(f"Generating synthetic data for {ticker} based on {reference_ticker}")
-    
+    logger.warning(
+        f"Generating synthetic data for {ticker} based on {reference_ticker}"
+    )
+
     try:
-        # Get reference data
-        ref_data = fetch_price_data(reference_ticker, start, end)
+        ref_data = None
+        if _depth == 0 and reference_ticker != ticker:
+            try:
+                # Get reference data for more realistic synthetic generation
+                ref_data = fetch_price_data(reference_ticker, start, end)
+            except Exception as e:  # noqa: PERF203
+                logger.warning(
+                    f"Reference data fetch failed for {reference_ticker}: {e}"
+                )
+                ref_data = None
+
+        if ref_data is None or ref_data.empty:
+            dates = pd.date_range(start=start, end=end, freq="B")
+            ref_data = pd.DataFrame({
+                "Open": np.full(len(dates), 100.0),
+                "High": np.full(len(dates), 101.0),
+                "Low": np.full(len(dates), 99.0),
+                "Close": np.full(len(dates), 100.0),
+                "Volume": np.full(len(dates), 1000.0),
+            }, index=dates)
         
         # Create a random beta between 0.5 and 1.5 for this ticker
         np.random.seed(hash(ticker) % 2**32)
